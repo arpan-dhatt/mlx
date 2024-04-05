@@ -26,9 +26,9 @@ inline U load_vector(const device T *x, thread U *x_thread) {
     for (int i = 0; i < values_per_thread; i += 4) {
       sum += x[i] + x[i+1] + x[i+2] + x[i+3];
       x_thread[i] = x[i];
-      x_thread[i+1] = x[i+1] / 4.0f;
-      x_thread[i+2] = x[i+2] / 16.0f;
-      x_thread[i+3] = x[i+3] / 64.0f;
+      x_thread[i+1] = static_cast<T>(x[i+1] / 4.0f);
+      x_thread[i+2] = static_cast<T>(x[i+2] / 16.0f);
+      x_thread[i+3] = static_cast<T>(x[i+3] / 64.0f);
     }
   }
 
@@ -36,9 +36,9 @@ inline U load_vector(const device T *x, thread U *x_thread) {
     for (int i = 0; i < values_per_thread; i += 4) {
       sum += x[i] + x[i+1] + x[i+2] + x[i+3];
       x_thread[i] = x[i];
-      x_thread[i+1] = x[i+1] / 16.0f;
-      x_thread[i+2] = x[i+2] / 256.0f;
-      x_thread[i+3] = x[i+3] / 4096.0f;
+      x_thread[i+1] = static_cast<T>(x[i+1] / 16.0f);
+      x_thread[i+2] = static_cast<T>(x[i+2] / 256.0f);
+      x_thread[i+3] = static_cast<T>(x[i+3] / 4096.0f);
     }
   }
 
@@ -62,9 +62,9 @@ inline U load_vector_safe(const device T *x, thread U *x_thread, int N) {
     for (int i = 0; i < N; i += 4) {
       sum += x[i] + x[i+1] + x[i+2] + x[i+3];
       x_thread[i] = x[i];
-      x_thread[i+1] = x[i+1] / 4.0f;
-      x_thread[i+2] = x[i+2] / 16.0f;
-      x_thread[i+3] = x[i+3] / 64.0f;
+      x_thread[i+1] = static_cast<T>(x[i+1] / 4.0f);
+      x_thread[i+2] = static_cast<T>(x[i+2] / 16.0f);
+      x_thread[i+3] = static_cast<T>(x[i+3] / 64.0f);
     }
     for (int i=N; i<values_per_thread; i++) {
       x_thread[i] = 0;
@@ -75,9 +75,9 @@ inline U load_vector_safe(const device T *x, thread U *x_thread, int N) {
     for (int i = 0; i < N; i += 4) {
       sum += x[i] + x[i+1] + x[i+2] + x[i+3];
       x_thread[i] = x[i];
-      x_thread[i+1] = x[i+1] / 16.0f;
-      x_thread[i+2] = x[i+2] / 256.0f;
-      x_thread[i+3] = x[i+3] / 4096.0f;
+      x_thread[i+1] = static_cast<T>(x[i+1] / 16.0f);
+      x_thread[i+2] = static_cast<T>(x[i+2] / 256.0f);
+      x_thread[i+3] = static_cast<T>(x[i+3] / 4096.0f);
     }
     for (int i=N; i<values_per_thread; i++) {
       x_thread[i] = 0;
@@ -174,7 +174,12 @@ inline void qouter(const thread uint8_t* w, U x, U scale, U bias, thread U* resu
   static_assert(bits == 2 || bits == 4 || bits == 8, "Template undefined for bits not in {2, 4, 8}");
 
   if (bits == 2) {
-    U s[4] = {scale, scale / 4.0f, scale / 16.0f, scale / 64.0f};
+    U s[4] = {
+      static_cast<U>(scale),
+      static_cast<U>(scale / 4.0f),
+      static_cast<U>(scale / 16.0f),
+      static_cast<U>(scale / 64.0f)
+    };
     for (int i = 0; i < (values_per_thread / 4); i++) {
       result[4*i] += x * (s[0] * (w[i] & 0x03) + bias);
       result[4*i+1] += x * (s[1] * (w[i] & 0x0c) + bias);
@@ -185,7 +190,12 @@ inline void qouter(const thread uint8_t* w, U x, U scale, U bias, thread U* resu
 
   else if (bits == 4) {
     const thread uint16_t* ws = (const thread uint16_t*)w;
-    U s[4] = {scale, scale / 16.0f, scale / 256.0f, scale / 4096.0f};
+    U s[4] = {
+      static_cast<U>(scale),
+      static_cast<U>(scale / 16.0f),
+      static_cast<U>(scale / 256.0f),
+      static_cast<U>(scale / 4096.0f)
+    };
     for (int i = 0; i < (values_per_thread / 4); i++) {
       result[4*i] += x * (s[0] * (ws[i] & 0x000f) + bias);
       result[4*i+1] += x * (s[1] * (ws[i] & 0x00f0) + bias);
@@ -221,7 +231,7 @@ template <typename T, int group_size, int bits, int packs_per_thread>
   constexpr int block_size = values_per_thread * SIMD_SIZE;
   constexpr int scale_step_per_thread = group_size / values_per_thread;
 
-  typedef float U;
+  typedef T U;
 
   thread U x_thread[values_per_thread];
   thread U result[results_per_simdgroup] = {0};
@@ -285,7 +295,7 @@ template <typename T, const int group_size, const int bits>
   constexpr int block_size = values_per_thread * SIMD_SIZE;
   constexpr int scale_step_per_thread = group_size / values_per_thread;
 
-  typedef float U;
+  typedef T U;
 
   thread U x_thread[values_per_thread];
   thread U result[results_per_simdgroup] = {0};
@@ -416,7 +426,7 @@ template <typename T, const int group_size, const int bits>
   constexpr int pack_factor = 32 / bits;
   constexpr int blocksize = SIMD_SIZE;
 
-  typedef float U;
+  typedef T U;
 
   thread uint32_t w_local;
   thread U result[pack_factor] = {0};
@@ -507,7 +517,7 @@ template <typename T, const int BM, const int BK, const int BN, const int group_
   constexpr int w_els_per_thread = (BN * BK / el_per_int) / (SIMD_SIZE * WM * WN);
 
   // Instantiate the appropriate BlockMMA and Loader
-  using mma_t = mlx::steel::BlockMMA<T, T, BM, BN, BK, WM, WN, false, true, BK, BK>;
+  using mma_t = mlx::steel::BlockMMA<T, T, BM, BN, BK, WM, WN, false, true, BK, BK, half>;
   using loader_x_t = mlx::steel::BlockLoader<T, BM, BK, BK, 1, WM * WN * SIMD_SIZE, 1, 4>;
 
   threadgroup T scales_block[BN * groups_per_block];
@@ -664,7 +674,7 @@ template <typename T, const int BM, const int BK, const int BN, const int group_
   constexpr int w_els_per_thread = (BK * BN / el_per_int) / (SIMD_SIZE * WM * WN);
 
   // Instantiate the appropriate BlockMMA and Loader
-  using mma_t = mlx::steel::BlockMMA<T, T, BM, BN, BK, WM, WN, false, false, BK, BN>;
+  using mma_t = mlx::steel::BlockMMA<T, T, BM, BN, BK, WM, WN, false, false, BK, BN, half>;
   using loader_x_t = mlx::steel::BlockLoader<T, BM, BK, BK, 1, WM * WN * SIMD_SIZE, 1, 4>;
 
   threadgroup T scales_block[BK * groups_per_block];
