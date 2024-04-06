@@ -30,7 +30,7 @@ double time_fn(F fn, Args&&... args) {
     eval(fn(std::forward<Args>(args)...));
   }
 
-  int num_iters = 100;
+  int num_iters = 1000;
   auto start = time_now();
   for (int i = 0; i < num_iters; i++) {
     eval(fn(std::forward<Args>(args)...));

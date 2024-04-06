@@ -160,6 +160,18 @@ void time_matmul() {
   TIME(transpose_matmul);
 }
 
+void time_quantized_matmul() {
+  int M = 256, N = 14336, K = 4096;
+  auto a = random::uniform({M, K}, float16);
+  auto b = random::uniform({N, K}, float16);
+  auto [bq, bs, bb] = quantize(b);
+  auto device = default_device();
+  eval(a, bq, bs, bb);
+
+  TIME(quantized_matmul, a, bq, bs, bb, true, 64, 4, device);
+}
+
+
 void time_reductions() {
   auto a = random::normal({10000, 1000});
   eval(a);
@@ -264,6 +276,7 @@ int main() {
   time_comparisons();
   time_matvec();
   time_matmul();
+  time_quantized_matmul();
   time_reductions();
   time_gather_scatter();
   time_divmod();
